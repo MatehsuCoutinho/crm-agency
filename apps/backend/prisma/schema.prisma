@@ -1,15 +1,83 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(ATTENDANT)
+  createdAt DateTime @default(now())
+
+  clients   Client[] @relation("UserClients")
+  messages  Message[]
+}
+
+model Client {
+  id          String   @id @default(uuid())
+  name        String
+  company     String?
+  email       String?
+  phone       String?
+  status      ClientStatus @default(NEW)
+  createdAt   DateTime @default(now())
+
+  assignedToId String?
+  assignedTo   User?    @relation("UserClients", fields: [assignedToId], references: [id])
+
+  tickets     Ticket[]
+}
+
+model Ticket {
+  id        String   @id @default(uuid())
+  status    TicketStatus @default(NEW)
+  createdAt DateTime @default(now())
+
+  clientId  String
+  client    Client  @relation(fields: [clientId], references: [id])
+
+  messages  Message[]
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  content   String
+  createdAt DateTime @default(now())
+
+  ticketId  String
+  ticket    Ticket   @relation(fields: [ticketId], references: [id])
+
+  senderId  String
+  sender    User     @relation(fields: [senderId], references: [id])
+}
+
+model Settings {
+  id           String @id @default(uuid())
+  companyName  String?
+  logoUrl      String?
+  primaryColor String?
+}
+
+enum Role {
+  ADMIN
+  ATTENDANT
+}
+
+enum ClientStatus {
+  NEW
+  ACTIVE
+  INACTIVE
+}
+
+enum TicketStatus {
+  NEW
+  IN_PROGRESS
+  WAITING_CLIENT
+  DONE
 }
