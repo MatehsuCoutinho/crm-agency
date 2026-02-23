@@ -1,6 +1,8 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import authRoutes from "./modules/auth/auth.routes";
+import { authMiddleware } from "./middlewares/auth.middleware";
 
 dotenv.config();
 
@@ -15,9 +17,10 @@ app.get("/", (req, res) => {
 
 const PORT = process.env.PORT || 4000;
 
-import authRoutes from "./modules/auth/auth.routes";
-
 app.use("/auth", authRoutes);
+app.get("/protected", authMiddleware, (req, res) => {
+  res.json({ message: "You are authenticated" });
+});
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
