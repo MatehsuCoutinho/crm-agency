@@ -4,6 +4,7 @@ import cors from "cors";
 import authRoutes from "./modules/auth/auth.routes";
 import { authMiddleware } from "./middlewares/auth.middleware";
 import clientsRoutes from "./modules/clients/clients.routes";
+import usersRoutes from "./modules/users/users.routes";
 
 dotenv.config();
 
@@ -22,6 +23,7 @@ app.use("/auth", authRoutes);
 app.get("/protected", authMiddleware, (req, res) => {
   res.json({ message: "You are authenticated" });
 });
+app.use("/users", usersRoutes);
 app.use("/clients", clientsRoutes);
 
 app.listen(PORT, () => {
