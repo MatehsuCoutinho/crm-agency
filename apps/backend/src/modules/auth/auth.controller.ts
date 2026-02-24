@@ -8,7 +8,7 @@ export class AuthController {
 
       const user = await AuthService.register(name, email, password);
 
-      res.status(201).json(user);
+      res.status(201).json({message:"User registered successfully", user: {name: user.name, email: user.email}});
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
@@ -20,7 +20,7 @@ export class AuthController {
 
       const data = await AuthService.login(email, password);
 
-      res.json(data);
+      res.json({message: "Login successful", user: {name: data.user.name, email: data.user.email}, token: data.token });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
