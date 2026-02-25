@@ -20,9 +20,6 @@ app.get("/", (req, res) => {
 const PORT = process.env.PORT || 4000;
 
 app.use("/auth", authRoutes);
-app.get("/protected", authMiddleware, (req, res) => {
-  res.json({ message: "You are authenticated" });
-});
 app.use("/users", usersRoutes);
 app.use("/clients", clientsRoutes);
 

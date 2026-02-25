@@ -1,14 +1,21 @@
 import { prisma } from "../../lib/prisma";
-import { AuthRequest } from "../../middlewares/auth.middleware";
 
 export class ClientsService {
     static async create(data: any, userId: string) {
-        return prisma.client.create({
+        const client = await prisma.client.create({
             data: {
                 ...data,
                 assignedToId: userId
             }
         });
+
+        await prisma.ticket.create({
+            data: {
+                clientId: client.id
+            }
+        });
+
+        return client;
     }
 
     static async list(user: any) {
