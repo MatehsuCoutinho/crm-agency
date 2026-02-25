@@ -40,4 +40,17 @@ export class TicketsController {
       }
     }
   }
+  
+  static async getMessages(req: Request<{ id: string }>, res: Response) {
+    try {
+      const messages = await TicketsService.getMessages(req.params.id);
+      res.json(messages);
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
+        res.status(404).json({ message: "Ticket not found" });
+      } else {
+        res.status(500).json({ message: "Internal server error" });
+      }
+    }
+  }
 }

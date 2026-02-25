@@ -35,4 +35,16 @@ export class TicketsService {
 
     return grouped;
   }
+
+  static async getMessages(ticketId: string) {
+    return prisma.message.findMany({
+      where: { ticketId },
+      include: {
+        sender: {
+          select: { id: true, name: true }
+        }
+      },
+      orderBy: { createdAt: "asc" }
+    });
+  }
 }
