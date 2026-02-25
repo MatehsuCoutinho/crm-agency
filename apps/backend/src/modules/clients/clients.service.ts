@@ -1,46 +1,53 @@
 import { prisma } from "../../lib/prisma";
 
+interface ClientData {
+  name: string;
+  email: string;
+  phone?: string;
+}
+
+interface AuthUser {
+  userId: string;
+  role: "ADMIN" | "USER";
+}
+
 export class ClientsService {
-    static async create(data: any, userId: string) {
-        const client = await prisma.client.create({
-            data: {
-                ...data,
-                assignedToId: userId
-            }
-        });
-
-        await prisma.ticket.create({
-            data: {
-                clientId: client.id
-            }
-        });
-
-        return client;
-    }
-
-    static async list(user: any) {
-        if (user.role === "ADMIN") {
-            return prisma.client.findMany({
-                include: { assignedTo: true }
-            });
+  static async create(data: ClientData, userId: string) {
+    return prisma.$transaction(async (tx) => {
+      const client = await tx.client.create({
+        data: {
+          ...data,
+          assignedToId: userId
         }
+      });
 
-        return prisma.client.findMany({
-            where: { assignedToId: user.userId },
-            include: { assignedTo: true }
-        });
-    }
+      await tx.ticket.create({
+        data: { clientId: client.id }
+      });
 
-    static async update(id: string, data: any) {
-        return prisma.client.update({
-            where: { id },
-            data
-        });
-    }
+      return client;
+    });
+  }
 
-    static async delete(id: string) {
-        return prisma.client.delete({
-            where: { id }
-        });
-    }
+  static async list(user: AuthUser) {
+    const where = user.role === "ADMIN" ? {} : { assignedToId: user.userId };
+
+    return prisma.client.findMany({
+      where,
+      include: { assignedTo: true }
+    });
+  }
+
+  static async update(id: string, data: Partial<ClientData>) {
+    return prisma.client.update({
+      where: { id },
+      data
+    });
+  }
+
+  static async delete(id: string) {
+    return prisma.client.delete({
+      where: { id }
+    });
+  }
 }
