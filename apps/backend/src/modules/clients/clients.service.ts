@@ -8,7 +8,7 @@ interface ClientData {
 
 interface AuthUser {
   userId: string;
-  role: "ADMIN" | "USER";
+  role: "ADMIN" | "ATTENDANT";
 }
 
 export class ClientsService {
