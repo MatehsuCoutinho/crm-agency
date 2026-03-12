@@ -6,8 +6,13 @@ if (!JWT_SECRET) {
   throw new Error("JWT_SECRET is not defined");
 }
 
+export interface TokenPayload {
+  userId: string;
+  role: "ADMIN" | "ATTENDANT";
+}
+
 export interface AuthRequest extends Request {
-  user?: any;
+  user?: TokenPayload;
 }
 
 export function authMiddleware(
@@ -24,7 +29,7 @@ export function authMiddleware(
   const token = authHeader.split(" ")[1];
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET) as TokenPayload;
     req.user = decoded;
     next();
   } catch {

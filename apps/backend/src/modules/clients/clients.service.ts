@@ -1,14 +1,10 @@
 import { prisma } from "../../lib/prisma";
+import { TokenPayload } from "../../middlewares/auth.middleware";
 
 interface ClientData {
   name: string;
   email: string;
   phone?: string;
-}
-
-interface AuthUser {
-  userId: string;
-  role: "ADMIN" | "ATTENDANT";
 }
 
 export class ClientsService {
@@ -29,7 +25,7 @@ export class ClientsService {
     });
   }
 
-  static async list(user: AuthUser) {
+  static async list(user: TokenPayload) {
     const where = user.role === "ADMIN" ? {} : { assignedToId: user.userId };
 
     return prisma.client.findMany({
