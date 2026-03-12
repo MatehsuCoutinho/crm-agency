@@ -1,6 +1,8 @@
 import { Request, Response } from "express";
 import { TicketsService } from "./tickets.service";
-import { Prisma } from "@prisma/client";
+import { Prisma, TicketStatus } from "@prisma/client";
+
+const VALID_STATUSES = Object.values(TicketStatus);
 
 export class TicketsController {
   static async list(req: Request, res: Response) {
@@ -30,6 +32,13 @@ export class TicketsController {
         return;
       }
 
+      if (!VALID_STATUSES.includes(status)) {
+        res.status(400).json({
+          message: `Invalid status. Valid values are: ${VALID_STATUSES.join(", ")}`
+        });
+        return;
+      }
+
       const ticket = await TicketsService.updateStatus(req.params.id, status);
       res.json(ticket);
     } catch (error) {
@@ -40,7 +49,7 @@ export class TicketsController {
       }
     }
   }
-  
+
   static async getMessages(req: Request<{ id: string }>, res: Response) {
     try {
       const messages = await TicketsService.getMessages(req.params.id);
