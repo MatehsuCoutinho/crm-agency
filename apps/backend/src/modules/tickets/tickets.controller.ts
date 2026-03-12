@@ -7,8 +7,11 @@ const VALID_STATUSES = Object.values(TicketStatus);
 export class TicketsController {
   static async list(req: Request, res: Response) {
     try {
-      const tickets = await TicketsService.list();
-      res.json(tickets);
+      const page = Math.max(1, parseInt(req.query.page as string) || 1);
+      const limit = Math.min(100, parseInt(req.query.limit as string) || 20);
+
+      const result = await TicketsService.list(page, limit);
+      res.json(result);
     } catch (error) {
       res.status(500).json({ message: "Internal server error" });
     }

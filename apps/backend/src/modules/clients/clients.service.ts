@@ -25,13 +25,22 @@ export class ClientsService {
     });
   }
 
-  static async list(user: TokenPayload) {
+  static async list(user: TokenPayload, page: number, limit: number) {
     const where = user.role === "ADMIN" ? {} : { assignedToId: user.userId };
+    const skip = (page - 1) * limit;
 
-    return prisma.client.findMany({
-      where,
-      include: { assignedTo: true }
-    });
+    const [data, total] = await prisma.$transaction([
+      prisma.client.findMany({
+        where,
+        include: { assignedTo: true },
+        skip,
+        take: limit,
+        orderBy: { createdAt: "desc" }
+      }),
+      prisma.client.count({ where })
+    ]);
+
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   static async update(id: string, data: Partial<ClientData>) {

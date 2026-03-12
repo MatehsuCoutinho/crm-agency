@@ -18,7 +18,7 @@ function handlePrismaError(error: unknown, res: Response) {
 export class ClientsController {
   static async create(req: AuthRequest, res: Response) {
     try {
-      const client = await ClientsService.create(req.body, req.user.userId);
+      const client = await ClientsService.create(req.body, req.user!.userId);
       res.status(201).json(client);
     } catch (error) {
       handlePrismaError(error, res);
@@ -27,8 +27,11 @@ export class ClientsController {
 
   static async list(req: AuthRequest, res: Response) {
     try {
-      const clients = await ClientsService.list(req.user);
-      res.json(clients);
+      const page = Math.max(1, parseInt(req.query.page as string) || 1);
+      const limit = Math.min(100, parseInt(req.query.limit as string) || 20);
+
+      const result = await ClientsService.list(req.user!, page, limit);
+      res.json(result);
     } catch (error) {
       handlePrismaError(error, res);
     }
