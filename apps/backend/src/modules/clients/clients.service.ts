@@ -25,8 +25,18 @@ export class ClientsService {
     });
   }
 
-  static async list(user: TokenPayload, page: number, limit: number) {
-    const where = user.role === "ADMIN" ? {} : { assignedToId: user.userId };
+  static async list(user: TokenPayload, page: number, limit: number, search?: string) {
+    const where = {
+      ...(user.role === "ADMIN" ? {} : { assignedToId: user.userId }),
+      ...(search ? {
+        OR: [
+          { name: { contains: search, mode: "insensitive" as const } },
+          { email: { contains: search, mode: "insensitive" as const } },
+          { phone: { contains: search, mode: "insensitive" as const } }
+        ]
+      } : {})
+    };
+
     const skip = (page - 1) * limit;
 
     const [data, total] = await prisma.$transaction([

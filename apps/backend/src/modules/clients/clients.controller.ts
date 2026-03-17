@@ -29,8 +29,9 @@ export class ClientsController {
     try {
       const page = Math.max(1, parseInt(req.query.page as string) || 1);
       const limit = Math.min(100, parseInt(req.query.limit as string) || 20);
+      const search = req.query.search as string | undefined;
 
-      const result = await ClientsService.list(req.user!, page, limit);
+      const result = await ClientsService.list(req.user!, page, limit, search);
       res.json(result);
     } catch (error) {
       handlePrismaError(error, res);
