@@ -14,34 +14,44 @@ model User {
   role      Role     @default(ATTENDANT)
   createdAt DateTime @default(now())
 
-  clients   Client[] @relation("UserClients")
-  messages  Message[]
+  clients  Client[]  @relation("UserClients")
+  messages Message[]
+  tickets  Ticket[]
 }
 
 model Client {
-  id          String   @id @default(uuid())
-  name        String
-  company     String?
-  email       String?
-  phone       String?
-  status      ClientStatus @default(NEW)
-  createdAt   DateTime @default(now())
+  id        String       @id @default(uuid())
+  name      String
+  company   String?
+  email     String?
+  phone     String?
+  status    ClientStatus @default(NEW)
+  createdAt DateTime     @default(now())
 
   assignedToId String?
-  assignedTo   User?    @relation("UserClients", fields: [assignedToId], references: [id])
+  assignedTo   User?   @relation("UserClients", fields: [assignedToId], references: [id])
 
-  tickets     Ticket[]
+  tickets Ticket[]
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
 }
 
 model Ticket {
-  id        String   @id @default(uuid())
+  id        String       @id @default(uuid())
   status    TicketStatus @default(NEW)
-  createdAt DateTime @default(now())
+  createdAt DateTime     @default(now())
 
-  clientId  String
-  client    Client  @relation(fields: [clientId], references: [id])
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
 
-  messages  Message[]
+  messages     Message[]
+  priority     TicketPriority @default(LOW)
+  assignedToId String?
+  assignedTo   User?          @relation(fields: [assignedToId], references: [id])
 }
 
 model Message {
@@ -49,15 +59,15 @@ model Message {
   content   String
   createdAt DateTime @default(now())
 
-  ticketId  String
-  ticket    Ticket   @relation(fields: [ticketId], references: [id])
+  ticketId String
+  ticket   Ticket @relation(fields: [ticketId], references: [id])
 
-  senderId  String
-  sender    User     @relation(fields: [senderId], references: [id])
+  senderId String
+  sender   User   @relation(fields: [senderId], references: [id])
 }
 
 model Settings {
-  id           String @id @default(uuid())
+  id           String  @id @default(uuid())
   companyName  String?
   logoUrl      String?
   primaryColor String?

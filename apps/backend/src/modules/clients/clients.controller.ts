@@ -3,7 +3,7 @@ import { ClientsService } from "./clients.service";
 import { AuthRequest } from "../../middlewares/auth.middleware";
 import { Prisma } from "@prisma/client";
 
-function handlePrismaError(error: unknown, res: Response) {
+function handlePrismaError(error: any, res: Response) {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     if (error.code === "P2025") {
       return res.status(404).json({ message: "Client not found" });

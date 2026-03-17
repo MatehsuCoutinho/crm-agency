@@ -1,7 +1,11 @@
 import { prisma } from "../../lib/prisma";
-import { TicketStatus } from "@prisma/client";
+import { TicketStatus, TicketPriority } from "@prisma/client";
 
-type GroupedTickets = Record<TicketStatus, Awaited<ReturnType<typeof prisma.ticket.findMany>>>;
+type TicketWithClient = Awaited<ReturnType<typeof prisma.ticket.findMany>>[number];
+
+type GroupedTickets = {
+  [K in TicketStatus]: TicketWithClient[];
+};
 
 export class TicketsService {
   static async list(page: number, limit: number) {
@@ -27,6 +31,28 @@ export class TicketsService {
     });
   }
 
+  static async updatePriority(id: string, priority: TicketPriority) {
+    return prisma.ticket.update({
+      where: { id },
+      data: { priority }
+    });
+  }
+
+  static async reassign(id: string, assignedToId: string) {
+    const userExists = await prisma.user.findUnique({
+      where: { id: assignedToId }
+    });
+
+    if (!userExists) {
+      throw new Error("User not found");
+    }
+
+    return prisma.ticket.update({
+      where: { id },
+      data: { assignedToId }
+    });
+  }
+
   static async listGrouped() {
     const tickets = await prisma.ticket.findMany({
       include: { client: true }
@@ -39,8 +65,8 @@ export class TicketsService {
       DONE: []
     };
 
-    tickets.forEach(ticket => {
-      grouped[ticket.status].push(ticket);
+    tickets.forEach((ticket: TicketWithClient) => {
+      grouped[ticket.status as TicketStatus].push(ticket);
     });
 
     return grouped;

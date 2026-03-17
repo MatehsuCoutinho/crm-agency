@@ -44,7 +44,7 @@ export class TicketsController {
 
       const ticket = await TicketsService.updateStatus(req.params.id, status);
       res.json(ticket);
-    } catch (error) {
+    } catch (error: any) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
         res.status(404).json({ message: "Ticket not found" });
       } else {
@@ -57,7 +57,7 @@ export class TicketsController {
     try {
       const messages = await TicketsService.getMessages(req.params.id);
       res.json(messages);
-    } catch (error) {
+    } catch (error: any) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
         res.status(404).json({ message: "Ticket not found" });
       } else {
