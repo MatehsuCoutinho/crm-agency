@@ -37,6 +37,27 @@ export class ClientsController {
     }
   }
 
+  static async findById(req: AuthRequest, res: Response) {
+    try {
+      const { id } = req.params;
+
+      // Verifica se é um array ou undefined
+      if (Array.isArray(id) || !id) {
+        return res.status(400).json({ message: "Invalid client ID" });
+      }
+
+      const client = await ClientsService.findById(id);
+
+      if (!client) {
+        return res.status(404).json({ message: "Client not found" });
+      }
+
+      res.json(client);
+    } catch (error) {
+      handlePrismaError(error, res);
+    }
+  }
+
   static async update(req: AuthRequest, res: Response) {
     try {
       const client = await ClientsService.update(req.params.id as string, req.body);

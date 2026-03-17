@@ -43,6 +43,13 @@ export class ClientsService {
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
+  static async findById(id: string) {
+    return prisma.client.findUnique({
+      where: { id },
+      include: { assignedTo: true }
+    });
+  }
+
   static async update(id: string, data: Partial<ClientData>) {
     return prisma.client.update({
       where: { id },
