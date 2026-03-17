@@ -9,6 +9,8 @@ router.use(authMiddleware);
 router.get("/", TicketsController.list);
 router.get("/grouped", TicketsController.listGrouped);
 router.put("/:id/status", TicketsController.updateStatus);
+router.put("/:id/priority", TicketsController.updatePriority);
+router.put("/:id/reassign", TicketsController.reassign);
 router.get("/:id/messages", TicketsController.getMessages);
 
 export default router;
