@@ -7,12 +7,12 @@ datasource db {
 }
 
 model User {
-  id       String  @id @default(uuid())
-  name     String
-  email    String  @unique
-  password String
-  role     Role    @default(ATTENDANT)
-  active   Boolean @default(true)
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(ATTENDANT)
+  active    Boolean  @default(true)
   createdAt DateTime @default(now())
 
   clients  Client[]  @relation("UserClients")
@@ -45,6 +45,7 @@ model Ticket {
   id        String       @id @default(uuid())
   status    TicketStatus @default(NEW)
   createdAt DateTime     @default(now())
+  updatedAt DateTime     @default(now()) @updatedAt
 
   clientId String
   client   Client @relation(fields: [clientId], references: [id])

@@ -9,6 +9,7 @@ import clientsRoutes from "./modules/clients/clients.routes";
 import usersRoutes from "./modules/users/users.routes";
 import ticketsRoutes from "./modules/tickets/tickets.routes";
 import { prisma } from "./lib/prisma";
+import metricsRoutes from "./modules/metrics/metrics.routes";
 
 dotenv.config();
 
@@ -30,6 +31,7 @@ app.use("/auth", authRoutes);
 app.use("/users", usersRoutes);
 app.use("/clients", clientsRoutes);
 app.use("/tickets", ticketsRoutes);
+app.use("/metrics", metricsRoutes);
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
