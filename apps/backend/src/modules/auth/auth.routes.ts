@@ -12,6 +12,7 @@ const loginRateLimit = rateLimit({
 
 const router = Router();
 
+router.post("/register", AuthController.registerAdmin);
 router.post("/login", loginRateLimit, AuthController.login);
 
 export default router;

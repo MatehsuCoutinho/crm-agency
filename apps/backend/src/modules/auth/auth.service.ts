@@ -32,6 +32,25 @@ export class AuthService {
 
     return user;
   }
+  
+  static async registerAdmin(name: string, email: string, password: string) {
+    const anyUser = await prisma.user.count();
+
+    if (anyUser > 0) {
+      throw new Error("Admin already exists. Use the admin account to create new users.");
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    return prisma.user.create({
+      data: {
+        name,
+        email,
+        password: hashedPassword,
+        role: "ADMIN"
+      }
+    });
+  }
 
   static async login(email: string, password: string) {
     const user = await prisma.user.findUnique({
