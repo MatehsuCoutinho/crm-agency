@@ -7,11 +7,12 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  name      String
-  email     String   @unique
-  password  String
-  role      Role     @default(ATTENDANT)
+  id       String  @id @default(uuid())
+  name     String
+  email    String  @unique
+  password String
+  role     Role    @default(ATTENDANT)
+  active   Boolean @default(true)
   createdAt DateTime @default(now())
 
   clients  Client[]  @relation("UserClients")
