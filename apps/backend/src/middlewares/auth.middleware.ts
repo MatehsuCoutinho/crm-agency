@@ -8,7 +8,7 @@ if (!JWT_SECRET) {
 
 export interface TokenPayload {
   userId: string;
-  role: "ADMIN" | "ATTENDANT";
+  role: "ADMIN" | "ATTENDANT" | "CLIENT";
 }
 
 export interface AuthRequest extends Request {
@@ -29,7 +29,12 @@ export function authMiddleware(
   const token = authHeader.split(" ")[1];
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as TokenPayload;
+    const decoded = jwt.verify(token, JWT_SECRET) as unknown as TokenPayload;
+
+    if (decoded.role === "CLIENT") {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
     req.user = decoded;
     next();
   } catch {

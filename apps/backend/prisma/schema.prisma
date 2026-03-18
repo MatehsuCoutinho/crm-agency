@@ -7,32 +7,32 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  name      String
-  email     String   @unique
-  password  String
-  role      Role     @default(ATTENDANT)
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-
-  clients  Client[]  @relation("UserClients")
-  messages Message[]
-  tickets  Ticket[]
+  id            String    @id @default(uuid())
+  name          String
+  email         String    @unique
+  password      String
+  role          Role      @default(ATTENDANT)
+  active        Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  clients       Client[]  @relation("AssignedClients")
+  clientProfile Client?   @relation("ClientUser")
+  messages      Message[]
+  tickets       Ticket[]  @relation("AssignedTickets")
 }
 
 model Client {
-  id        String       @id @default(uuid())
-  name      String
-  company   String?
-  email     String?
-  phone     String?
-  status    ClientStatus @default(NEW)
-  createdAt DateTime     @default(now())
-
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  phone        String
   assignedToId String?
-  assignedTo   User?   @relation("UserClients", fields: [assignedToId], references: [id])
-
-  tickets Ticket[]
+  assignedTo   User?    @relation("AssignedClients", fields: [assignedToId], references: [id])
+  userId       String   @unique
+  user         User     @relation("ClientUser", fields: [userId], references: [id])
+  tickets      Ticket[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 enum TicketPriority {
@@ -42,30 +42,28 @@ enum TicketPriority {
 }
 
 model Ticket {
-  id        String       @id @default(uuid())
-  status    TicketStatus @default(NEW)
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @default(now()) @updatedAt
-
-  clientId String
-  client   Client @relation(fields: [clientId], references: [id])
-
-  messages     Message[]
+  id           String         @id @default(uuid())
+  title        String
+  description  String
+  status       TicketStatus   @default(NEW)
   priority     TicketPriority @default(LOW)
+  clientId     String
+  client       Client         @relation(fields: [clientId], references: [id])
   assignedToId String?
-  assignedTo   User?          @relation(fields: [assignedToId], references: [id])
+  assignedTo   User?          @relation("AssignedTickets", fields: [assignedToId], references: [id])
+  messages     Message[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
 }
 
 model Message {
   id        String   @id @default(uuid())
   content   String
+  ticketId  String
+  ticket    Ticket   @relation(fields: [ticketId], references: [id])
+  senderId  String
+  sender    User     @relation(fields: [senderId], references: [id])
   createdAt DateTime @default(now())
-
-  ticketId String
-  ticket   Ticket @relation(fields: [ticketId], references: [id])
-
-  senderId String
-  sender   User   @relation(fields: [senderId], references: [id])
 }
 
 model Settings {
@@ -78,6 +76,7 @@ model Settings {
 enum Role {
   ADMIN
   ATTENDANT
+  CLIENT
 }
 
 enum ClientStatus {
