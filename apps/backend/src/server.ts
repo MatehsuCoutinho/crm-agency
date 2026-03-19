@@ -8,14 +8,19 @@ import authRoutes from "./modules/auth/auth.routes";
 import clientsRoutes from "./modules/clients/clients.routes";
 import usersRoutes from "./modules/users/users.routes";
 import ticketsRoutes from "./modules/tickets/tickets.routes";
-import { prisma } from "./lib/prisma";
-import metricsRoutes from "./modules/metrics/metrics.routes";
 import clientAuthRoutes from "./modules/client/client.routes";
+import metricsRoutes from "./modules/metrics/metrics.routes";
+import { prisma } from "./lib/prisma";
 
 dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
+
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error("JWT_SECRET is not defined");
+}
 
 const io = new Server(server, {
   cors: {
@@ -31,14 +36,9 @@ app.use(express.json());
 app.use("/auth", authRoutes);
 app.use("/users", usersRoutes);
 app.use("/clients", clientsRoutes);
-app.use("/client", clientAuthRoutes);
 app.use("/tickets", ticketsRoutes);
+app.use("/client", clientAuthRoutes);
 app.use("/metrics", metricsRoutes);
-
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  throw new Error("JWT_SECRET is not defined");
-}
 
 io.use((socket, next) => {
   const token = socket.handshake.auth.token;
@@ -48,7 +48,13 @@ io.use((socket, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET!) as any;
+
+    // aceita tanto CLIENT quanto ADMIN/ATTENDANT
+    if (!["ADMIN", "ATTENDANT", "CLIENT"].includes(decoded.role)) {
+      return next(new Error("Unauthorized"));
+    }
+
     socket.data.user = decoded;
     next();
   } catch {
@@ -57,10 +63,23 @@ io.use((socket, next) => {
 });
 
 io.on("connection", (socket) => {
-  console.log("User connected:", socket.data.user.userId);
+  console.log(`User connected: ${socket.data.user.userId} (${socket.data.user.role})`);
 
-  socket.on("join_ticket", (ticketId: string) => {
+  socket.on("join_ticket", async (ticketId: string) => {
+    // se for cliente, valida se o ticket pertence a ele
+    if (socket.data.user.role === "CLIENT") {
+      const ticket = await prisma.ticket.findUnique({
+        where: { id: ticketId }
+      });
+
+      if (!ticket || ticket.clientId !== socket.data.user.clientId) {
+        socket.emit("error", { message: "Ticket not found" });
+        return;
+      }
+    }
+
     socket.join(`ticket:${ticketId}`);
+    console.log(`${socket.data.user.role} joined ticket: ${ticketId}`);
   });
 
   socket.on("send_message", async ({ ticketId, content }) => {
@@ -68,6 +87,19 @@ io.on("connection", (socket) => {
       socket.emit("error", { message: "ticketId and content are required" });
       return;
     }
+
+    // se for cliente, valida se o ticket pertence a ele
+    if (socket.data.user.role === "CLIENT") {
+      const ticket = await prisma.ticket.findUnique({
+        where: { id: ticketId }
+      });
+
+      if (!ticket || ticket.clientId !== socket.data.user.clientId) {
+        socket.emit("error", { message: "Ticket not found" });
+        return;
+      }
+    }
+
     try {
       const message = await prisma.message.create({
         data: {
@@ -77,18 +109,38 @@ io.on("connection", (socket) => {
         },
         include: {
           sender: {
-            select: { id: true, name: true }
+            select: { id: true, name: true, role: true }
           }
         }
       });
+
       io.to(`ticket:${ticketId}`).emit("receive_message", message);
     } catch (error) {
       socket.emit("error", { message: "Failed to send message" });
     }
   });
 
+  socket.on("typing", ({ ticketId }) => {
+    socket.to(`ticket:${ticketId}`).emit("user_typing", {
+      userId: socket.data.user.userId,
+      name: socket.data.user.name,
+      role: socket.data.user.role
+    });
+  });
+
+  socket.on("stop_typing", ({ ticketId }) => {
+    socket.to(`ticket:${ticketId}`).emit("user_stop_typing", {
+      userId: socket.data.user.userId
+    });
+  });
+
+  socket.on("leave_ticket", (ticketId: string) => {
+    socket.leave(`ticket:${ticketId}`);
+    console.log(`${socket.data.user.role} left ticket: ${ticketId}`);
+  });
+
   socket.on("disconnect", () => {
-    console.log("User disconnected");
+    console.log(`User disconnected: ${socket.data.user.userId}`);
   });
 });
 
