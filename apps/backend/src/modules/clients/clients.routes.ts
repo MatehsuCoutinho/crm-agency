@@ -6,7 +6,6 @@ const router = Router();
 
 router.use(authMiddleware);
 
-router.post("/", ClientsController.create);
 router.get("/", ClientsController.list);
 router.get("/:id", ClientsController.findById);
 router.put("/:id", ClientsController.update);

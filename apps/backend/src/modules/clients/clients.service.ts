@@ -4,24 +4,16 @@ import { TokenPayload } from "../../middlewares/auth.middleware";
 interface ClientData {
   name: string;
   email: string;
-  phone?: string;
+  phone: string;
 }
 
 export class ClientsService {
   static async create(data: ClientData, userId: string) {
-    return prisma.$transaction(async (tx) => {
-      const client = await tx.client.create({
-        data: {
-          ...data,
-          assignedToId: userId
-        }
-      });
-
-      await tx.ticket.create({
-        data: { clientId: client.id }
-      });
-
-      return client;
+    return prisma.client.create({
+      data: {
+        ...data,
+        userId  // vincula ao User com role CLIENT
+      }
     });
   }
 
