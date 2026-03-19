@@ -10,6 +10,7 @@ import usersRoutes from "./modules/users/users.routes";
 import ticketsRoutes from "./modules/tickets/tickets.routes";
 import { prisma } from "./lib/prisma";
 import metricsRoutes from "./modules/metrics/metrics.routes";
+import clientAuthRoutes from "./modules/client/client.routes";
 
 dotenv.config();
 
@@ -30,6 +31,7 @@ app.use(express.json());
 app.use("/auth", authRoutes);
 app.use("/users", usersRoutes);
 app.use("/clients", clientsRoutes);
+app.use("/client", clientAuthRoutes);
 app.use("/tickets", ticketsRoutes);
 app.use("/metrics", metricsRoutes);
 
