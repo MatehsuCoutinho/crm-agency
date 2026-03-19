@@ -11,11 +11,13 @@ import ticketsRoutes from "./modules/tickets/tickets.routes";
 import clientAuthRoutes from "./modules/client/client.routes";
 import metricsRoutes from "./modules/metrics/metrics.routes";
 import { prisma } from "./lib/prisma";
+import { setupSwagger } from "./swagger/swagger.setup";
 
 dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
+setupSwagger(app);
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -148,4 +150,5 @@ const PORT = process.env.PORT || 4000;
 
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  console.log(`API documentation available at http://localhost:${PORT}/docs`);
 });

@@ -1,0 +1,1438 @@
+openapi: 3.0.3
+info:
+  title: Helpdesk Platform API
+  description: |
+    API REST com chat em tempo real para uma plataforma de suporte ao cliente.
+
+    A plataforma possui dois mundos completamente separados:
+    - **Portal do Staff** — usado por admins e atendentes para gerenciar clientes, tickets e metricas
+    - **Portal do Cliente** — usado pelos clientes finais para se registrar, abrir tickets e conversar em tempo real
+
+    ## Autenticacao
+    Todas as rotas protegidas exigem um token Bearer no header Authorization.
+    Tokens de staff e de cliente sao estruturalmente diferentes e validados por middlewares separados.
+    Um token de cliente nao acessa rotas do staff e vice-versa.
+
+    ## Rate Limiting
+    Os endpoints de login e registro possuem rate limiting de 10 requisicoes por IP a cada 15 minutos.
+  version: 1.0.0
+  contact:
+    name: Helpdesk Platform
+
+servers:
+  - url: http://localhost:4000
+    description: Servidor local de desenvolvimento
+
+tags:
+  - name: Auth — Staff
+    description: Autenticacao para admins e atendentes
+  - name: Auth — Cliente
+    description: Autenticacao exclusiva para clientes finais
+  - name: Usuarios
+    description: Gerenciamento de usuarios internos (somente ADMIN)
+  - name: Clientes
+    description: Gerenciamento de perfis de clientes (ADMIN e ATTENDANT)
+  - name: Tickets — Staff
+    description: Gerenciamento de tickets pelo painel interno
+  - name: Tickets — Cliente
+    description: Abertura e visualizacao de tickets pelo portal do cliente
+  - name: Metricas
+    description: Dados agregados para o dashboard (ADMIN e ATTENDANT)
+
+components:
+  securitySchemes:
+    StaffBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token JWT com role ADMIN ou ATTENDANT
+    ClientBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token JWT com role CLIENT contendo clientId no payload
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: Mensagem de erro legivel
+
+    ValidationError:
+      type: object
+      properties:
+        error:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          example:
+            email:
+              - Invalid email
+            password:
+              - Password must be at least 6 characters
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [ADMIN, ATTENDANT]
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    Client:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        assignedToId:
+          type: string
+          format: uuid
+          nullable: true
+        userId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        assignedTo:
+          $ref: '#/components/schemas/User'
+
+    Ticket:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [NEW, IN_PROGRESS, WAITING_CLIENT, DONE]
+        priority:
+          type: string
+          enum: [LOW, MEDIUM, HIGH]
+        clientId:
+          type: string
+          format: uuid
+        assignedToId:
+          type: string
+          format: uuid
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    TicketWithClient:
+      allOf:
+        - $ref: '#/components/schemas/Ticket'
+        - type: object
+          properties:
+            client:
+              $ref: '#/components/schemas/Client'
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        content:
+          type: string
+        ticketId:
+          type: string
+          format: uuid
+        senderId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        sender:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+            role:
+              type: string
+              enum: [ADMIN, ATTENDANT, CLIENT]
+
+    PaginatedClients:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Client'
+        total:
+          type: integer
+          example: 100
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 20
+        totalPages:
+          type: integer
+          example: 5
+
+    PaginatedTickets:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/TicketWithClient'
+        total:
+          type: integer
+          example: 50
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 20
+        totalPages:
+          type: integer
+          example: 3
+
+    GroupedTickets:
+      type: object
+      properties:
+        NEW:
+          type: array
+          items:
+            $ref: '#/components/schemas/TicketWithClient'
+        IN_PROGRESS:
+          type: array
+          items:
+            $ref: '#/components/schemas/TicketWithClient'
+        WAITING_CLIENT:
+          type: array
+          items:
+            $ref: '#/components/schemas/TicketWithClient'
+        DONE:
+          type: array
+          items:
+            $ref: '#/components/schemas/TicketWithClient'
+
+    MetricsSummary:
+      type: object
+      properties:
+        ticketsByStatus:
+          type: array
+          items:
+            type: object
+            properties:
+              status:
+                type: string
+                enum: [NEW, IN_PROGRESS, WAITING_CLIENT, DONE]
+              _count:
+                type: object
+                properties:
+                  status:
+                    type: integer
+        ticketsByPriority:
+          type: array
+          items:
+            type: object
+            properties:
+              priority:
+                type: string
+                enum: [LOW, MEDIUM, HIGH]
+              _count:
+                type: object
+                properties:
+                  priority:
+                    type: integer
+        clientsByAttendant:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              _count:
+                type: object
+                properties:
+                  clients:
+                    type: integer
+        resolutionTime:
+          type: object
+          properties:
+            averageHours:
+              type: number
+              example: 4.5
+            totalResolved:
+              type: integer
+              example: 23
+
+paths:
+
+  # ==================== AUTH STAFF ====================
+
+  /auth/register:
+    post:
+      tags:
+        - Auth — Staff
+      summary: Registrar admin inicial
+      description: |
+        Cria a unica conta de admin do sistema.
+        So funciona quando nao existe nenhum usuario no banco.
+        Qualquer tentativa posterior retorna erro 400.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name:
+                  type: string
+                  example: Admin
+                email:
+                  type: string
+                  format: email
+                  example: admin@empresa.com
+                password:
+                  type: string
+                  minLength: 6
+                  example: senha123
+      responses:
+        '201':
+          description: Admin criado com sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Admin registered successfully
+                  user:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      email:
+                        type: string
+        '400':
+          description: Admin ja existe ou dados invalidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                admin_exists:
+                  value:
+                    error: Admin already exists. Use the admin account to create new users.
+                validation_error:
+                  value:
+                    error:
+                      email:
+                        - Invalid email
+
+  /auth/login:
+    post:
+      tags:
+        - Auth — Staff
+      summary: Login do staff
+      description: |
+        Autentica admins e atendentes.
+        Rate limitado a 10 tentativas por IP a cada 15 minutos.
+        Tokens de cliente sao rejeitados neste endpoint.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: admin@empresa.com
+                password:
+                  type: string
+                  example: senha123
+      responses:
+        '200':
+          description: Login realizado com sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Login successful
+                  user:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      email:
+                        type: string
+                  token:
+                    type: string
+                    example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        '400':
+          description: Credenciais invalidas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Invalid credentials
+        '429':
+          description: Rate limit excedido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Too many login attempts, please try again later
+
+  # ==================== AUTH CLIENTE ====================
+
+  /client/register:
+    post:
+      tags:
+        - Auth — Cliente
+      summary: Registrar cliente
+      description: |
+        Cria uma conta de cliente final.
+        Cria automaticamente um User com role CLIENT e um perfil Client vinculado.
+        O perfil Client comeca sem atendente atribuido.
+        Rate limitado a 10 tentativas por IP a cada 15 minutos.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password, phone]
+              properties:
+                name:
+                  type: string
+                  example: Joao Silva
+                email:
+                  type: string
+                  format: email
+                  example: joao@email.com
+                password:
+                  type: string
+                  minLength: 6
+                  example: senha123
+                phone:
+                  type: string
+                  example: "11999999999"
+      responses:
+        '201':
+          description: Cliente registrado com sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Client registered successfully
+                  client:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      email:
+                        type: string
+                      phone:
+                        type: string
+                      clientId:
+                        type: string
+                        format: uuid
+        '400':
+          description: Dados invalidos ou email ja em uso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /client/login:
+    post:
+      tags:
+        - Auth — Cliente
+      summary: Login do cliente
+      description: |
+        Endpoint exclusivo para clientes finais.
+        Credenciais de staff (ADMIN/ATTENDANT) serao rejeitadas.
+        O token retornado contem clientId no payload alem do userId.
+        Rate limitado a 10 tentativas por IP a cada 15 minutos.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: joao@email.com
+                password:
+                  type: string
+                  example: senha123
+      responses:
+        '200':
+          description: Login realizado com sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Login successful
+                  token:
+                    type: string
+                    example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                  user:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      email:
+                        type: string
+                      clientId:
+                        type: string
+                        format: uuid
+        '400':
+          description: Credenciais invalidas ou usuario nao e cliente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Rate limit excedido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== USUARIOS ====================
+
+  /users:
+    post:
+      tags:
+        - Usuarios
+      summary: Criar usuario
+      description: Cria um novo atendente ou admin. Somente ADMIN pode executar esta acao.
+      security:
+        - StaffBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password, role]
+              properties:
+                name:
+                  type: string
+                  example: Maria Atendente
+                email:
+                  type: string
+                  format: email
+                  example: maria@empresa.com
+                password:
+                  type: string
+                  minLength: 6
+                  example: senha123
+                role:
+                  type: string
+                  enum: [ADMIN, ATTENDANT]
+                  example: ATTENDANT
+      responses:
+        '201':
+          description: Usuario criado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Dados invalidos ou email ja em uso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Token ausente ou invalido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Somente ADMIN pode criar usuarios
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Only admin can perform this action
+
+    get:
+      tags:
+        - Usuarios
+      summary: Listar usuarios
+      description: Retorna todos os usuarios sem a senha. Somente ADMIN pode executar esta acao.
+      security:
+        - StaffBearerAuth: []
+      responses:
+        '200':
+          description: Lista de usuarios
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+        '401':
+          description: Token ausente ou invalido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Permissao insuficiente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /users/{id}:
+    put:
+      tags:
+        - Usuarios
+      summary: Editar usuario
+      description: Atualiza nome e email de um usuario. Somente ADMIN.
+      security:
+        - StaffBearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: Maria Silva
+                email:
+                  type: string
+                  format: email
+                  example: maria.silva@empresa.com
+      responses:
+        '200':
+          description: Usuario atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Token ausente ou invalido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Permissao insuficiente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Erro interno
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /users/{id}/deactivate:
+    patch:
+      tags:
+        - Usuarios
+      summary: Desativar usuario
+      description: |
+        Desativa um usuario definindo active como false.
+        O registro e mantido no banco de dados.
+        Somente ADMIN.
+      security:
+        - StaffBearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Usuario desativado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Token ausente ou invalido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Permissao insuficiente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== CLIENTES ====================
+
+  /clients:
+    get:
+      tags:
+        - Clientes
+      summary: Listar clientes
+      description: |
+        Retorna clientes com paginacao e busca.
+        ADMIN ve todos os clientes.
+        ATTENDANT ve apenas os clientes atribuidos a ele.
+      security:
+        - StaffBearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+          description: Numero da pagina
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+          description: Resultados por pagina (maximo 100)
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Busca por nome, email ou telefone (case-insensitive)
+      responses:
+        '200':
+          description: Lista paginada de clientes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedClients'
+        '401':
+          description: Token ausente ou invalido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /clients/{id}:
+    get:
+      tags:
+        - Clientes
+      summary: Buscar cliente por ID
+      description: Retorna um unico cliente com o atendente atribuido.
+      security:
+        - StaffBearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Cliente encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Client'
+        '404':
+          description: Cliente nao encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: Client not found
+        '401':
+          description: Token ausente ou invalido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+        - Clientes
+      summary: Editar cliente
+      description: Atualiza dados do cliente.
+      security:
+        - StaffBearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                phone:
+                  type: string
+      responses:
+        '200':
+          description: Cliente atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Client'
+        '404':
+          description: Cliente nao encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Token ausente ou invalido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - Clientes
+      summary: Remover cliente
+      description: Remove permanentemente um cliente do banco de dados.
+      security:
+        - StaffBearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Cliente removido com sucesso
+        '404':
+          description: Cliente nao encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Token ausente ou invalido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== TICKETS STAFF ====================
+
+  /tickets:
+    get:
+      tags:
+        - Tickets — Staff
+      summary: Listar todos os tickets
+      description: Retorna lista paginada de todos os tickets com dados do cliente.
+      security:
+        - StaffBearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+      responses:
+        '200':
+          description: Lista paginada de tickets
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedTickets'
+        '401':
+          description: Token ausente ou invalido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tickets/grouped:
+    get:
+      tags:
+        - Tickets — Staff
+      summary: Tickets agrupados por status
+      description: Retorna todos os tickets agrupados por status. Ideal para montar um kanban board no frontend.
+      security:
+        - StaffBearerAuth: []
+      responses:
+        '200':
+          description: Tickets agrupados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupedTickets'
+        '401':
+          description: Token ausente ou invalido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tickets/{id}/status:
+    put:
+      tags:
+        - Tickets — Staff
+      summary: Atualizar status do ticket
+      description: Atualiza o status do ticket. Valida o valor contra o enum antes de salvar.
+      security:
+        - StaffBearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [NEW, IN_PROGRESS, WAITING_CLIENT, DONE]
+                  example: IN_PROGRESS
+      responses:
+        '200':
+          description: Status atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ticket'
+        '400':
+          description: Status invalido ou ausente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Invalid status. Valid values are: NEW, IN_PROGRESS, WAITING_CLIENT, DONE"
+        '404':
+          description: Ticket nao encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Token ausente ou invalido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tickets/{id}/priority:
+    put:
+      tags:
+        - Tickets — Staff
+      summary: Atualizar prioridade do ticket
+      description: Define a prioridade do ticket. Valida o valor contra o enum antes de salvar.
+      security:
+        - StaffBearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [priority]
+              properties:
+                priority:
+                  type: string
+                  enum: [LOW, MEDIUM, HIGH]
+                  example: HIGH
+      responses:
+        '200':
+          description: Prioridade atualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ticket'
+        '400':
+          description: Prioridade invalida ou ausente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Invalid priority. Valid values are: LOW, MEDIUM, HIGH"
+        '404':
+          description: Ticket nao encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Token ausente ou invalido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tickets/{id}/reassign:
+    put:
+      tags:
+        - Tickets — Staff
+      summary: Reatribuir ticket
+      description: Atribui o ticket para outro atendente. Valida que o usuario alvo existe no banco.
+      security:
+        - StaffBearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assignedToId]
+              properties:
+                assignedToId:
+                  type: string
+                  format: uuid
+                  example: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+      responses:
+        '200':
+          description: Ticket reatribuido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ticket'
+        '400':
+          description: assignedToId ausente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Ticket ou usuario nao encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Token ausente ou invalido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tickets/{id}/messages:
+    get:
+      tags:
+        - Tickets — Staff
+      summary: Historico de mensagens
+      description: Retorna o historico completo de mensagens de um ticket ordenado por data de criacao.
+      security:
+        - StaffBearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Lista de mensagens
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Message'
+        '404':
+          description: Ticket nao encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Token ausente ou invalido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== TICKETS CLIENTE ====================
+
+  /client/tickets:
+    post:
+      tags:
+        - Tickets — Cliente
+      summary: Abrir ticket
+      description: Cliente abre um novo ticket de suporte com titulo e descricao.
+      security:
+        - ClientBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, description]
+              properties:
+                title:
+                  type: string
+                  example: Problema no acesso ao sistema
+                description:
+                  type: string
+                  example: Nao consigo acessar minha conta desde ontem. O sistema retorna erro 403.
+      responses:
+        '201':
+          description: Ticket criado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ticket'
+        '400':
+          description: Dados invalidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '401':
+          description: Token ausente ou invalido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Token nao e de cliente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    get:
+      tags:
+        - Tickets — Cliente
+      summary: Listar proprios tickets
+      description: Retorna todos os tickets do cliente autenticado ordenados por data de criacao.
+      security:
+        - ClientBearerAuth: []
+      responses:
+        '200':
+          description: Lista de tickets do cliente
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Ticket'
+        '401':
+          description: Token ausente ou invalido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /client/tickets/{id}:
+    get:
+      tags:
+        - Tickets — Cliente
+      summary: Ver ticket com mensagens
+      description: |
+        Retorna um unico ticket com historico completo de mensagens.
+        Cliente so consegue acessar os proprios tickets.
+        Tentativa de acessar ticket de outro cliente retorna 404.
+      security:
+        - ClientBearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Ticket com mensagens
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Ticket'
+                  - type: object
+                    properties:
+                      messages:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Message'
+        '404':
+          description: Ticket nao encontrado ou nao pertence ao cliente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Token ausente ou invalido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== METRICAS ====================
+
+  /metrics/summary:
+    get:
+      tags:
+        - Metricas
+      summary: Resumo geral
+      description: |
+        Retorna todas as metricas em uma unica chamada.
+        Usa Promise.all internamente para execucao paralela das queries.
+        Ideal para carregar o dashboard completo com uma unica requisicao.
+      security:
+        - StaffBearerAuth: []
+      responses:
+        '200':
+          description: Resumo completo de metricas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetricsSummary'
+        '401':
+          description: Token ausente ou invalido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /metrics/tickets-by-status:
+    get:
+      tags:
+        - Metricas
+      summary: Tickets por status
+      description: Contagem de tickets agrupada por status.
+      security:
+        - StaffBearerAuth: []
+      responses:
+        '200':
+          description: Contagem por status
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    status:
+                      type: string
+                      enum: [NEW, IN_PROGRESS, WAITING_CLIENT, DONE]
+                    _count:
+                      type: object
+                      properties:
+                        status:
+                          type: integer
+              example:
+                - status: NEW
+                  _count:
+                    status: 12
+                - status: IN_PROGRESS
+                  _count:
+                    status: 5
+
+  /metrics/tickets-by-priority:
+    get:
+      tags:
+        - Metricas
+      summary: Tickets por prioridade
+      description: Contagem de tickets agrupada por prioridade.
+      security:
+        - StaffBearerAuth: []
+      responses:
+        '200':
+          description: Contagem por prioridade
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    priority:
+                      type: string
+                      enum: [LOW, MEDIUM, HIGH]
+                    _count:
+                      type: object
+                      properties:
+                        priority:
+                          type: integer
+              example:
+                - priority: HIGH
+                  _count:
+                    priority: 3
+                - priority: MEDIUM
+                  _count:
+                    priority: 8
+
+  /metrics/clients-by-attendant:
+    get:
+      tags:
+        - Metricas
+      summary: Clientes por atendente
+      description: Numero de clientes atribuidos por atendente ativo.
+      security:
+        - StaffBearerAuth: []
+      responses:
+        '200':
+          description: Clientes por atendente
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                    name:
+                      type: string
+                    _count:
+                      type: object
+                      properties:
+                        clients:
+                          type: integer
+              example:
+                - id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                  name: Maria Atendente
+                  _count:
+                    clients: 8
+
+  /metrics/resolution-time:
+    get:
+      tags:
+        - Metricas
+      summary: Tempo medio de resolucao
+      description: Tempo medio em horas para tickets com status DONE. Calculado com base em createdAt e updatedAt.
+      security:
+        - StaffBearerAuth: []
+      responses:
+        '200':
+          description: Tempo medio de resolucao
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  averageHours:
+                    type: number
+                    example: 4.5
+                  totalResolved:
+                    type: integer
+                    example: 23
+        '401':
+          description: Token ausente ou invalido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
