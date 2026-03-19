@@ -31,4 +31,9 @@ export const registerClientSchema = z.object({
     phone: z.string().min(1, "Phone is required")
 });
 
+export const createTicketSchema = z.object({
+    title: z.string().min(1, "Title is required"),
+    description: z.string().min(1, "Description is required")
+});
+
 export const updateClientSchema = createClientSchema.partial();
