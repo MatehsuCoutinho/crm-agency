@@ -1,4 +1,5 @@
 import { prisma } from "../../lib/prisma";
+import { ClientStatus } from "@prisma/client";
 import { TokenPayload } from "../../middlewares/auth.middleware";
 
 interface ClientData {
@@ -17,9 +18,10 @@ export class ClientsService {
     });
   }
 
-  static async list(user: TokenPayload, page: number, limit: number, search?: string) {
+  static async list(user: TokenPayload, page: number, limit: number, search?: string, status?: ClientStatus) {
     const where = {
       ...(user.role === "ADMIN" ? {} : { assignedToId: user.userId }),
+      ...(status ? { status } : {}),
       ...(search ? {
         OR: [
           { name: { contains: search, mode: "insensitive" as const } },
@@ -62,6 +64,13 @@ export class ClientsService {
   static async delete(id: string) {
     return prisma.client.delete({
       where: { id }
+    });
+  }
+
+  static async updateStatus(id: string, status: ClientStatus) {
+    return prisma.client.update({
+      where: { id },
+      data: { status }
     });
   }
 }
