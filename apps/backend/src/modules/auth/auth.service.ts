@@ -2,7 +2,10 @@ import { prisma } from "../../lib/prisma";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET || "supersecret";
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error("JWT_SECRET is not defined");
+}
 
 export class AuthService {
   static async register(
@@ -61,6 +64,10 @@ export class AuthService {
       throw new Error("Invalid credentials");
     }
 
+    if (!user.active) {
+      throw new Error("Account deactivated");
+    }
+
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
@@ -69,7 +76,7 @@ export class AuthService {
 
     const token = jwt.sign(
       { userId: user.id, role: user.role },
-      JWT_SECRET,
+      JWT_SECRET!,
       { expiresIn: "7d" }
     );
 
