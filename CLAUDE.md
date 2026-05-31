@@ -43,6 +43,7 @@ crm-agency/
 │           │   ├── layout.tsx        # root layout — envolve com <Providers>
 │           │   ├── providers.tsx     # client component que monta o AuthProvider
 │           │   └── page.tsx
+│           ├── middleware.ts         # proteção de rotas e redirect por role
 │           ├── lib/
 │           │   ├── api.ts          # helper fetch com injeção de Bearer token (lê do cookie)
 │           │   └── cookies.ts      # utilitários getCookie / setCookie / deleteCookie
@@ -388,7 +389,7 @@ NEXT_PUBLIC_SOCKET_URL=http://localhost:4000
 | Etapa | O que construir | Status | Dependências |
 |-------|-----------------|--------|--------------|
 | 1 | Auth Context + hook `useAuth` + `apiFetch` migrado para cookie | ✅ feito | — |
-| 2 | Middleware Next.js + redirect por role | — | Etapa 1 |
+| 2 | Middleware Next.js + redirect por role | ✅ feito | Etapa 1 |
 | 3 | Layouts (dashboard e portal) com Sidebar e Header | — | Etapa 2 |
 | 4 | Páginas de login (admin e cliente) e cadastro de cliente | — | Etapa 3 |
 | 5 | Dashboard de métricas (`GET /metrics/summary`) | — | Etapa 3 |
