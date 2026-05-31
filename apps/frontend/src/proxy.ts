@@ -19,7 +19,7 @@ function decodeToken(token: string): TokenPayload | null {
 const DASHBOARD_PREFIXES = ["/dashboard", "/tickets", "/clients", "/users"];
 const PORTAL_PREFIXES = ["/portal/tickets"];
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get("token")?.value ?? null;
   const payload = token ? decodeToken(token) : null;
