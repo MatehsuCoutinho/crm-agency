@@ -265,16 +265,141 @@ FRONTEND_URL=http://localhost:3000
 
 ---
 
+## Plano do Frontend
+
+O frontend está em estado de scaffold (somente `page.tsx` e `layout.tsx`). Este plano descreve o que precisa ser construído, na ordem recomendada de execução.
+
+---
+
+### Estrutura de rotas (App Router)
+
+```
+src/app/
+├── middleware.ts                     # Proteção de rotas e redirecionamento por role
+├── (public)/                         # Rotas sem autenticação
+│   ├── login/page.tsx                # Login admin/atendente
+│   └── portal/
+│       ├── login/page.tsx            # Login cliente
+│       └── register/page.tsx         # Cadastro cliente
+├── (dashboard)/                      # Rotas protegidas — ADMIN e ATTENDANT
+│   ├── layout.tsx                    # Sidebar + header + auth guard
+│   ├── dashboard/page.tsx            # Cards de métricas
+│   ├── tickets/
+│   │   ├── page.tsx                  # Kanban board (agrupado por status)
+│   │   └── [id]/page.tsx             # Detalhe do ticket + chat
+│   ├── clients/
+│   │   ├── page.tsx                  # Lista paginada com search e filtro de status
+│   │   └── [id]/page.tsx             # Detalhe do cliente + tickets vinculados
+│   └── users/page.tsx                # Gestão de usuários — somente ADMIN
+└── (portal)/                         # Rotas protegidas — CLIENT
+    ├── layout.tsx                    # Layout minimalista + auth guard
+    ├── portal/tickets/page.tsx       # Lista dos tickets do cliente
+    ├── portal/tickets/new/page.tsx   # Criar ticket
+    └── portal/tickets/[id]/page.tsx  # Detalhe do ticket + chat
+```
+
+---
+
+### Componentes planejados
+
+```
+src/components/
+├── ui/                     # Primitivos reutilizáveis (Button, Input, Badge, Modal, etc.)
+├── layout/
+│   ├── Sidebar.tsx         # Navegação lateral (links variam por role)
+│   └── Header.tsx          # Barra superior com nome do usuário e logout
+├── auth/
+│   └── AuthGuard.tsx       # Verifica token e role, redireciona se inválido
+├── dashboard/
+│   └── MetricCard.tsx      # Card individual de métrica (número + label)
+├── tickets/
+│   ├── KanbanBoard.tsx     # Grid de colunas por status com drag-and-drop
+│   ├── KanbanColumn.tsx    # Coluna individual (NEW, IN_PROGRESS, etc.)
+│   ├── TicketCard.tsx      # Card arrastável com título, prioridade, cliente
+│   └── TicketChat.tsx      # Chat em tempo real via Socket.IO
+├── clients/
+│   ├── ClientTable.tsx     # Tabela paginada com search e filtro de status
+│   └── ClientStatusBadge.tsx
+└── users/
+    └── UserTable.tsx       # Tabela com ações de atualizar e desativar
+```
+
+---
+
+### Estado e dados
+
+| Camada | Solução | Motivo |
+|--------|---------|--------|
+| Auth state (token, user, role) | React Context + `useReducer` | Simples o suficiente; sem dependência externa |
+| Data fetching e cache | SWR | Revalidação automática, deduplication, loading states fáceis |
+| Formulários | `react-hook-form` + `zod` | Validação client-side em sync com os schemas do backend |
+| Socket.IO | hook customizado `useTicketChat` | Encapsula conexão, join/leave e eventos de mensagem |
+
+---
+
+### Middleware Next.js (proteção de rotas)
+
+O `middleware.ts` precisa ler o token de um **cookie** (não de `localStorage`, que é inacessível no servidor). Isso implica:
+
+1. No login, salvar o JWT em um cookie `httpOnly` além (ou no lugar) do `localStorage`
+2. O middleware lê o cookie, decodifica o payload sem verificar a assinatura (apenas para ler o `role`) e redireciona:
+   - Sem token → `/login`
+   - `role === CLIENT` tentando acessar `/dashboard/*` → `/portal/tickets`
+   - `role !== CLIENT` tentando acessar `/portal/*` → `/dashboard`
+
+---
+
+### Dependências a instalar no frontend
+
+```bash
+# Dados e formulários
+npm install swr react-hook-form zod
+
+# WebSocket
+npm install socket.io-client
+
+# Drag-and-drop para o Kanban
+npm install @dnd-kit/core @dnd-kit/sortable
+
+# Gráficos nas métricas
+npm install recharts
+```
+
+---
+
+### Variáveis de ambiente
+
+Adicionar em `apps/frontend/.env.local`:
+```
+NEXT_PUBLIC_API_URL=http://localhost:4000
+NEXT_PUBLIC_SOCKET_URL=http://localhost:4000
+```
+
+---
+
+### Ordem de desenvolvimento recomendada
+
+| Etapa | O que construir | Dependências |
+|-------|-----------------|--------------|
+| 1 | Auth Context + hook `useAuth` + `apiFetch` migrado para cookie | — |
+| 2 | Middleware Next.js + redirect por role | Etapa 1 |
+| 3 | Layouts (dashboard e portal) com Sidebar e Header | Etapa 2 |
+| 4 | Páginas de login (admin e cliente) e cadastro de cliente | Etapa 3 |
+| 5 | Dashboard de métricas (`GET /metrics/summary`) | Etapa 3 |
+| 6 | Kanban de tickets (`GET /tickets/grouped`, drag-and-drop) | Etapa 3 |
+| 7 | Detalhe do ticket + chat em tempo real (Socket.IO) | Etapa 6 |
+| 8 | Lista e detalhe de clientes (paginação, filtro, criação) | Etapa 3 |
+| 9 | Portal do cliente (listar/criar tickets + chat) | Etapa 7 |
+| 10 | Gestão de usuários (somente ADMIN) | Etapa 3 |
+
+---
+
 ## Pontos de atenção
 
 ### Arquitetura
 
-3. **Monorepo sem workspaces** — o `package.json` raiz não configura `workspaces`. Os dois apps são independentes sem compartilhamento de tipos ou utilitários.
-
-4. **Tempo médio de resolução impreciso** — `MetricsService.getAverageResolutionTime` usa `updatedAt` como proxy para o tempo de resolução. Qualquer edição no ticket (reatribuição, mudança de prioridade) distorce a métrica.
+1. **Monorepo sem workspaces** — o `package.json` raiz não configura `workspaces`. Os dois apps são independentes sem compartilhamento de tipos ou utilitários.
 
 ### Frontend
 
-5. **Em estado inicial** — o frontend tem apenas o scaffold do Next.js. Não há páginas além de `page.tsx` e `layout.tsx`. A pasta `src/services/` existe mas está vazia.
-
-6. **Token em localStorage** — vulnerável a XSS. Para produção, considerar cookies httpOnly.
+2. **Token em localStorage** — vulnerável a XSS. A etapa 1 do plano acima resolve isso migrando para cookie httpOnly.
