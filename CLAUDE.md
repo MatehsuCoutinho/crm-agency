@@ -390,7 +390,7 @@ NEXT_PUBLIC_SOCKET_URL=http://localhost:4000
 |-------|-----------------|--------|--------------|
 | 1 | Auth Context + hook `useAuth` + `apiFetch` migrado para cookie | ✅ feito | — |
 | 2 | Middleware Next.js + redirect por role | ✅ feito | Etapa 1 |
-| 3 | Layouts (dashboard e portal) com Sidebar e Header | — | Etapa 2 |
+| 3 | Layouts (dashboard e portal) com Sidebar e Header | ✅ feito | Etapa 2 |
 | 4 | Páginas de login (admin e cliente) e cadastro de cliente | — | Etapa 3 |
 | 5 | Dashboard de métricas (`GET /metrics/summary`) | — | Etapa 3 |
 | 6 | Kanban de tickets (`GET /tickets/grouped`, drag-and-drop) | — | Etapa 3 |
