@@ -9,6 +9,7 @@ const router = Router();
 // rotas públicas
 router.post("/register", authLimiter, ClientAuthController.register);
 router.post("/login", authLimiter, ClientAuthController.login);
+router.post("/logout", ClientAuthController.logout);
 
 // rotas protegidas
 router.use(clientMiddleware);

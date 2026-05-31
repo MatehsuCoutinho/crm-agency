@@ -41,4 +41,8 @@ export class AuthController {
       res.status(400).json({ error: error.message });
     }
   }
+
+  static logout(_req: Request, res: Response) {
+    res.json({ message: "Logged out successfully" });
+  }
 }

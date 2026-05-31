@@ -52,6 +52,10 @@ export class ClientAuthService {
             throw new Error("Invalid credentials");
         }
 
+        if (!user.active) {
+            throw new Error("Account deactivated");
+        }
+
         if (!user.clientProfile) {
             throw new Error("Client profile not found");
         }

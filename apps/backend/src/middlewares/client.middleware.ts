@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
+import { prisma } from "../lib/prisma";
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -16,7 +17,7 @@ export interface ClientRequest extends Request {
     client?: ClientTokenPayload;
 }
 
-export function clientMiddleware(
+export async function clientMiddleware(
     req: ClientRequest,
     res: Response,
     next: NextFunction
@@ -29,16 +30,26 @@ export function clientMiddleware(
 
     const token = authHeader.split(" ")[1];
 
+    let decoded: ClientTokenPayload;
     try {
-        const decoded = jwt.verify(token, JWT_SECRET!) as unknown as ClientTokenPayload;
-
-        if (decoded.role !== "CLIENT") {
-            return res.status(403).json({ error: "Access denied" });
-        }
-
-        req.client = decoded;
-        next();
+        decoded = jwt.verify(token, JWT_SECRET!) as unknown as ClientTokenPayload;
     } catch {
         return res.status(401).json({ error: "Invalid token" });
     }
+
+    if (decoded.role !== "CLIENT") {
+        return res.status(403).json({ error: "Access denied" });
+    }
+
+    const user = await prisma.user.findUnique({
+        where: { id: decoded.userId },
+        select: { active: true }
+    });
+
+    if (!user || !user.active) {
+        return res.status(403).json({ error: "Account deactivated" });
+    }
+
+    req.client = decoded;
+    next();
 }
