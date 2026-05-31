@@ -2,21 +2,13 @@ import { Router } from "express";
 import { ClientAuthController } from "./client.controller";
 import { ClientTicketsController } from "./client-tickets.controller";
 import { clientMiddleware } from "../../middlewares/client.middleware";
-import rateLimit from "express-rate-limit";
-
-const clientRateLimit = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 10,
-    message: { error: "Too many attempts, please try again later" },
-    standardHeaders: true,
-    legacyHeaders: false
-});
+import { authLimiter } from "../../lib/rate-limit";
 
 const router = Router();
 
 // rotas públicas
-router.post("/register", clientRateLimit, ClientAuthController.register);
-router.post("/login", clientRateLimit, ClientAuthController.login);
+router.post("/register", authLimiter, ClientAuthController.register);
+router.post("/login", authLimiter, ClientAuthController.login);
 
 // rotas protegidas
 router.use(clientMiddleware);

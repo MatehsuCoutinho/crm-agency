@@ -12,6 +12,7 @@ import clientAuthRoutes from "./modules/client/client.routes";
 import metricsRoutes from "./modules/metrics/metrics.routes";
 import { prisma } from "./lib/prisma";
 import { setupSwagger } from "./swagger/swagger.setup";
+import { globalLimiter } from "./lib/rate-limit";
 
 dotenv.config();
 
@@ -34,6 +35,7 @@ app.use(cors({
   origin: process.env.FRONTEND_URL || "http://localhost:3000"
 }));
 app.use(express.json());
+app.use(globalLimiter);
 
 app.use("/auth", authRoutes);
 app.use("/users", usersRoutes);

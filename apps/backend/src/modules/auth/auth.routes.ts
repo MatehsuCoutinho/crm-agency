@@ -1,18 +1,10 @@
 import { Router } from "express";
 import { AuthController } from "./auth.controller";
-import rateLimit from "express-rate-limit";
-
-const loginRateLimit = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutos
-    max: 10, // máximo 10 tentativas por IP
-    message: { error: "Too many login attempts, please try again later" },
-    standardHeaders: true,
-    legacyHeaders: false
-});
+import { authLimiter } from "../../lib/rate-limit";
 
 const router = Router();
 
-router.post("/register", AuthController.registerAdmin);
-router.post("/login", loginRateLimit, AuthController.login);
+router.post("/register", authLimiter, AuthController.registerAdmin);
+router.post("/login", authLimiter, AuthController.login);
 
 export default router;
