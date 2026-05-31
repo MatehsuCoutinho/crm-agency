@@ -40,10 +40,16 @@ crm-agency/
 │   └── frontend/         # Next.js 16 (App Router) — em desenvolvimento inicial
 │       └── src/
 │           ├── app/
-│           │   ├── layout.tsx
+│           │   ├── layout.tsx        # root layout — envolve com <Providers>
+│           │   ├── providers.tsx     # client component que monta o AuthProvider
 │           │   └── page.tsx
 │           ├── lib/
-│           │   └── api.ts          # helper fetch com injeção de Bearer token
+│           │   ├── api.ts          # helper fetch com injeção de Bearer token (lê do cookie)
+│           │   └── cookies.ts      # utilitários getCookie / setCookie / deleteCookie
+│           ├── contexts/
+│           │   └── AuthContext.tsx   # estado global de autenticação
+│           ├── hooks/
+│           │   └── useAuth.ts        # hook para consumir o AuthContext
 │           └── services/           # (vazio por enquanto)
 └── package.json          # raiz sem workspaces configurados
 ```
@@ -229,11 +235,11 @@ Todos os limiters ficam em `src/lib/rate-limit.ts` e são importados pelos módu
 
 ### Frontend
 
-| Pacote          | Uso                            |
-|-----------------|--------------------------------|
-| `next` 16       | Framework React (App Router)   |
-| `react` 19      | UI                             |
-| `tailwindcss` 4 | Estilo                         |
+| Pacote          | Uso                                        |
+|-----------------|--------------------------------------------|
+| `next` 16       | Framework React (App Router)               |
+| `react` 19      | UI                                         |
+| `tailwindcss` 4 | Estilo                                     |
 
 ---
 
@@ -379,18 +385,18 @@ NEXT_PUBLIC_SOCKET_URL=http://localhost:4000
 
 ### Ordem de desenvolvimento recomendada
 
-| Etapa | O que construir | Dependências |
-|-------|-----------------|--------------|
-| 1 | Auth Context + hook `useAuth` + `apiFetch` migrado para cookie | — |
-| 2 | Middleware Next.js + redirect por role | Etapa 1 |
-| 3 | Layouts (dashboard e portal) com Sidebar e Header | Etapa 2 |
-| 4 | Páginas de login (admin e cliente) e cadastro de cliente | Etapa 3 |
-| 5 | Dashboard de métricas (`GET /metrics/summary`) | Etapa 3 |
-| 6 | Kanban de tickets (`GET /tickets/grouped`, drag-and-drop) | Etapa 3 |
-| 7 | Detalhe do ticket + chat em tempo real (Socket.IO) | Etapa 6 |
-| 8 | Lista e detalhe de clientes (paginação, filtro, criação) | Etapa 3 |
-| 9 | Portal do cliente (listar/criar tickets + chat) | Etapa 7 |
-| 10 | Gestão de usuários (somente ADMIN) | Etapa 3 |
+| Etapa | O que construir | Status | Dependências |
+|-------|-----------------|--------|--------------|
+| 1 | Auth Context + hook `useAuth` + `apiFetch` migrado para cookie | ✅ feito | — |
+| 2 | Middleware Next.js + redirect por role | — | Etapa 1 |
+| 3 | Layouts (dashboard e portal) com Sidebar e Header | — | Etapa 2 |
+| 4 | Páginas de login (admin e cliente) e cadastro de cliente | — | Etapa 3 |
+| 5 | Dashboard de métricas (`GET /metrics/summary`) | — | Etapa 3 |
+| 6 | Kanban de tickets (`GET /tickets/grouped`, drag-and-drop) | — | Etapa 3 |
+| 7 | Detalhe do ticket + chat em tempo real (Socket.IO) | — | Etapa 6 |
+| 8 | Lista e detalhe de clientes (paginação, filtro, criação) | — | Etapa 3 |
+| 9 | Portal do cliente (listar/criar tickets + chat) | — | Etapa 7 |
+| 10 | Gestão de usuários (somente ADMIN) | — | Etapa 3 |
 
 ---
 
@@ -402,4 +408,4 @@ NEXT_PUBLIC_SOCKET_URL=http://localhost:4000
 
 ### Frontend
 
-2. **Token em localStorage** — vulnerável a XSS. A etapa 1 do plano acima resolve isso migrando para cookie httpOnly.
+2. **Token em cookie regular (não httpOnly)** — o token está em um cookie `SameSite=Strict`, o que já é mais seguro que localStorage para CSRF. Para proteção total contra XSS, a etapa seguinte seria um endpoint Next.js API que recebe o JWT do backend e o grava em cookie `httpOnly`, inacessível a JavaScript.
