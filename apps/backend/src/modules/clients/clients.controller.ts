@@ -2,6 +2,8 @@ import { Response } from "express";
 import { ClientsService } from "./clients.service";
 import { AuthRequest } from "../../middlewares/auth.middleware";
 import { Prisma } from "@prisma/client";
+import { createClientSchema, updateClientStatusSchema } from "../../lib/schemas";
+import { ClientStatus } from "@prisma/client";
 
 function handlePrismaError(error: any, res: Response) {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -18,7 +20,11 @@ function handlePrismaError(error: any, res: Response) {
 export class ClientsController {
   static async create(req: AuthRequest, res: Response) {
     try {
-      const client = await ClientsService.create(req.body, req.user!.userId);
+      const parsed = createClientSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: parsed.error.flatten().fieldErrors });
+      }
+      const client = await ClientsService.create(parsed.data, req.user!.userId);
       res.status(201).json(client);
     } catch (error) {
       handlePrismaError(error, res);
@@ -30,8 +36,9 @@ export class ClientsController {
       const page = Math.max(1, parseInt(req.query.page as string) || 1);
       const limit = Math.min(100, parseInt(req.query.limit as string) || 20);
       const search = req.query.search as string | undefined;
+      const status = req.query.status as ClientStatus | undefined;
 
-      const result = await ClientsService.list(req.user!, page, limit, search);
+      const result = await ClientsService.list(req.user!, page, limit, search, status);
       res.json(result);
     } catch (error) {
       handlePrismaError(error, res);
@@ -72,6 +79,19 @@ export class ClientsController {
     try {
       await ClientsService.delete(req.params.id as string);
       res.status(204).send();
+    } catch (error) {
+      handlePrismaError(error, res);
+    }
+  }
+
+  static async updateStatus(req: AuthRequest, res: Response) {
+    try {
+      const parsed = updateClientStatusSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: parsed.error.flatten().fieldErrors });
+      }
+      const client = await ClientsService.updateStatus(req.params.id as string, parsed.data.status as ClientStatus);
+      res.json(client);
     } catch (error) {
       handlePrismaError(error, res);
     }

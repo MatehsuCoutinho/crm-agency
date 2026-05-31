@@ -21,7 +21,7 @@ export const createUserSchema = z.object({
 export const createClientSchema = z.object({
     name: z.string().min(1, "Name is required"),
     email: z.string().email("Invalid email"),
-    phone: z.string().optional()
+    phone: z.string().min(1, "Phone is required")
 });
 
 export const registerClientSchema = z.object({
@@ -37,3 +37,7 @@ export const createTicketSchema = z.object({
 });
 
 export const updateClientSchema = createClientSchema.partial();
+
+export const updateClientStatusSchema = z.object({
+  status: z.enum(["NEW", "ACTIVE", "INACTIVE"], { message: "Invalid status" })
+});
