@@ -43,7 +43,7 @@ crm-agency/
 │           │   ├── layout.tsx        # root layout — envolve com <Providers>
 │           │   ├── providers.tsx     # client component que monta o AuthProvider
 │           │   └── page.tsx
-│           ├── middleware.ts         # proteção de rotas e redirect por role
+│           ├── proxy.ts              # proteção de rotas e redirect por role (Next.js 16)
 │           ├── lib/
 │           │   ├── api.ts          # helper fetch com injeção de Bearer token (lê do cookie)
 │           │   └── cookies.ts      # utilitários getCookie / setCookie / deleteCookie
@@ -282,7 +282,7 @@ O frontend está em estado de scaffold (somente `page.tsx` e `layout.tsx`). Este
 
 ```
 src/app/
-├── middleware.ts                     # Proteção de rotas e redirecionamento por role
+├── proxy.ts                          # Proteção de rotas e redirecionamento por role (Next.js 16)
 ├── (public)/                         # Rotas sem autenticação
 │   ├── login/page.tsx                # Login admin/atendente
 │   └── portal/
