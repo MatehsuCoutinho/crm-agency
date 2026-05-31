@@ -65,12 +65,17 @@ POST /auth/register   [rate limit: 10 req / 15 min]
 
 POST /auth/login      [rate limit: 10 req / 15 min]
   └─ Busca user por email
+  └─ Verifica user.active — lança erro se conta estiver desativada
   └─ Compara senha com bcrypt
   └─ jwt.sign({ userId, role })  → expira em 7 dias
   └─ Retorna { token, user }
+
+POST /auth/logout
+  └─ Sem estado no servidor — retorna 200
+  └─ O cliente deve descartar o token localmente
 ```
 
-O `authMiddleware` lê o `Authorization: Bearer <token>`, verifica o JWT e **rejeita qualquer token com `role === "CLIENT"`**.
+O `authMiddleware` lê o `Authorization: Bearer <token>`, verifica o JWT, rejeita `role === "CLIENT"` e **consulta o banco para checar `user.active`** — tokens de contas desativadas retornam 403.
 
 ### Fluxo 2 — Cliente final (`/client/*`)
 
@@ -79,11 +84,17 @@ POST /client/register   [rate limit: 10 req / 15 min]
   └─ Cria User(role=CLIENT) + Client profile em uma transação
 
 POST /client/login      [rate limit: 10 req / 15 min]
+  └─ Busca user por email
+  └─ Verifica user.active — lança erro se conta estiver desativada
   └─ jwt.sign({ userId, clientId, role: "CLIENT" })  → expira em 7 dias
   └─ Retorna { token, user }
+
+POST /client/logout
+  └─ Sem estado no servidor — retorna 200
+  └─ O cliente deve descartar o token localmente
 ```
 
-O `clientMiddleware` só aceita tokens onde `role === "CLIENT"`.
+O `clientMiddleware` só aceita tokens onde `role === "CLIENT"` e **consulta o banco para checar `user.active`** antes de prosseguir.
 
 ### Autenticação no WebSocket (Socket.IO)
 
@@ -155,6 +166,7 @@ Cliente conecta com token JWT
 |--------|---------------------------------|---------------------|--------------|----------------------------------------------------|
 | POST   | `/auth/register`                | público             | authLimiter  | Cadastra o primeiro admin                          |
 | POST   | `/auth/login`                   | público             | authLimiter  | Login admin/atendente → JWT                        |
+| POST   | `/auth/logout`                  | público             | global       | Sinaliza logout (stateless)                        |
 | POST   | `/users`                        | authMiddleware      | writeLimiter | Cria usuário interno                               |
 | GET    | `/users`                        | authMiddleware      | global       | Lista usuários                                     |
 | PUT    | `/users/:id`                    | authMiddleware      | writeLimiter | Atualiza usuário                                   |
@@ -173,6 +185,7 @@ Cliente conecta com token JWT
 | GET    | `/tickets/:id/messages`         | authMiddleware      | global       | Histórico de mensagens do ticket                   |
 | POST   | `/client/register`              | público             | authLimiter  | Auto-cadastro do cliente                           |
 | POST   | `/client/login`                 | público             | authLimiter  | Login do cliente → JWT                             |
+| POST   | `/client/logout`                | público             | global       | Sinaliza logout (stateless)                        |
 | POST   | `/client/tickets`               | clientMiddleware    | global       | Cliente cria ticket próprio                        |
 | GET    | `/client/tickets`               | clientMiddleware    | global       | Cliente lista seus tickets                         |
 | GET    | `/client/tickets/:id`           | clientMiddleware    | global       | Cliente busca ticket próprio                       |
@@ -253,12 +266,6 @@ FRONTEND_URL=http://localhost:3000
 ---
 
 ## Pontos de atenção
-
-### Segurança
-
-1. **Fallback inseguro de JWT_SECRET** — `auth.middleware.ts` e `auth.service.ts` ainda têm `|| "supersecret"` como fallback. Em produção, a variável ausente não lança erro; usa um segredo previsível. **Pendente de correção (ponto 1 do plano).**
-
-2. **Tokens não são invalidados no logout/desativação** — `PATCH /users/:id/deactivate` seta `active: false` no banco, mas o JWT emitido permanece válido por até 7 dias. **Pendente de correção (ponto 2 do plano).**
 
 ### Arquitetura
 
